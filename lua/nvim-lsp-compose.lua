@@ -8,7 +8,7 @@ local registered_actions = {}
 -- here we append in order to a global list of actions to be called on save
 local function register_actions(client, buff_num, actions)
     registered_actions[buff_num] = registered_actions[buff_num] or {}
-    for i, action in pairs(actions) do
+    for _, action in pairs(actions) do
         table.insert(
             registered_actions[buff_num],
             function()
@@ -18,16 +18,15 @@ local function register_actions(client, buff_num, actions)
     end
 end
 
--- register_server registers a server from the matrix
-local function register_server(name, filetypes, server)
-    local ctx = {
-        default_config = {filetypes = filetypes},
-        actions = {}
-    }
-    for k, aspect in pairs(server) do
-        aspect(filetypes, ctx)
+-- register_server registers a server from the list
+local function register_server(index, server)
+    local ctx = {filetypes = {}, default_config = {}, actions = {}}
+    for _, aspect in pairs(server) do
+        aspect(ctx)
     end
+    ctx.default_config.filetypes = ctx.filetypes
 
+    local name = string.format("compose-%d-%s", index, table.concat(ctx.filetypes, "-"))
     configs[name] = {default_config = ctx.default_config}
     lsp[name].setup(
         {
@@ -48,10 +47,6 @@ local function auto_format(client, buff_num)
     end
 end
 
-local function server_name(filetypes, index)
-    return string.format("compose-%s-%d", table.concat(filetypes, "-"), index)
-end
-
 local M = {}
 
 -- write is to be called by the user, eg
@@ -62,62 +57,71 @@ local M = {}
 function M.write()
     local buff_num = vim.api.nvim_get_current_buf()
     local actions = registered_actions[buff_num] or {}
-    for i, action in pairs(actions) do
+    for _, action in pairs(actions) do
         action()
     end
 end
 
--- setup registers a server/formatter/linter matrix
-function M.setup(matrix)
-    for _, pair in pairs(matrix) do
-        for i, server in pairs(pair.servers) do
-            local name = server_name(pair.filetypes, i)
-            register_server(name, pair.filetypes, server)
+-- setup registers a list of servers
+function M.setup(servers)
+    for i, server in pairs(servers) do
+        register_server(i, server)
+    end
+end
+
+-- aspect filetypes
+function M.filetypes(...)
+    local filetypes = {...}
+    return function(ctx)
+        for _, filetype in pairs(filetypes) do
+            table.insert(ctx.filetypes, filetype)
         end
     end
 end
 
--- matrix aspect: lsp server
+-- aspect server
 function M.server(server)
-    return function(filetypes, ctx)
+    return function(ctx)
         for k, v in pairs(server()) do
             ctx.default_config[k] = v
         end
     end
 end
 
--- matrix aspect: function to run on BuffWritePre. executed in the order defined by the matrix
+-- aspect action
+-- a function to run on BuffWritePre
+-- executed in the order defined by the list
 function M.action(action)
-    return function(filetypes, ctx)
+    return function(ctx)
         table.insert(ctx.actions, action)
     end
 end
 
--- matrix aspect: efm format tool
+-- aspect efm formatter
 function M.formatter(...)
     local formatter = table.concat({...}, " ")
-    return function(filetypes, ctx)
+    return function(ctx)
         local c = ctx.default_config
         c.init_options.documentFormatting = true
-        for _, filetype in pairs(filetypes) do
+        for _, filetype in pairs(ctx.filetypes) do
             c.settings.languages[filetype] = c.settings.languages[filetype] or {}
             table.insert(c.settings.languages[filetype], {formatCommand = formatter, formatStdin = true})
         end
     end
 end
 
--- matrix aspect: efm linter
+-- aspect efm linter
 function M.linter(linter)
-    return function(filetypes, ctx)
+    return function(ctx)
         local c = ctx.default_config
-        for _, filetype in pairs(filetypes) do
+        for _, filetype in pairs(ctx.filetypes) do
             c.settings.languages[filetype] = c.settings.languages[filetype] or {}
             table.insert(c.settings.languages[filetype], linter)
         end
     end
 end
 
--- matrix aspect: format with the current server
+-- aspect action with auto_format pre filled
 M.auto_format = M.action(auto_format)
 
 return M
