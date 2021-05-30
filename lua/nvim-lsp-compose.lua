@@ -2,6 +2,7 @@ local lsp = require "lspconfig"
 local configs = require "lspconfig/configs"
 local util = require "lspconfig/util"
 
+local server_count = 0
 local registered_actions = {}
 
 -- register_actions should be called when a server connect to a buffer.
@@ -18,29 +19,10 @@ local function register_actions(client, buff_num, actions)
     end
 end
 
--- register_server registers a server from the list
-local function register_server(index, server)
-    local ctx = {filetypes = {}, default_config = {}, actions = {}}
-    for _, aspect in pairs(server) do
-        aspect(ctx)
-    end
-    ctx.default_config.filetypes = ctx.filetypes
-
-    local name = string.format("compose-%d-%s", index, table.concat(ctx.filetypes, "-"))
-    configs[name] = {default_config = ctx.default_config}
-    lsp[name].setup(
-        {
-            on_attach = function(client, buff_num)
-                register_actions(client, buff_num, ctx.actions)
-            end
-        }
-    )
-end
-
 -- auto_format is an action that asks the specified client to format the document
 local function auto_format(client, buff_num)
     local params = vim.lsp.util.make_formatting_params(options)
-    local result, err = client.request_sync("textDocument/formatting", params, 2000)
+    local result, _ = client.request_sync("textDocument/formatting", params, 2000)
 
     if result and result.result then
         vim.lsp.util.apply_text_edits(result.result)
@@ -62,11 +44,25 @@ function M.write()
     end
 end
 
--- setup registers a list of servers
-function M.setup(servers)
-    for i, server in pairs(servers) do
-        register_server(i, server)
+-- add adds a server witht the provided aspects
+function M.add(...)
+    local ctx = {filetypes = {}, default_config = {}, actions = {}}
+    for _, aspect in pairs({...}) do
+        aspect(ctx)
     end
+    ctx.default_config.filetypes = ctx.filetypes
+
+    local name = string.format("compose-%d-%s", server_count, table.concat(ctx.filetypes, "-"))
+    configs[name] = {default_config = ctx.default_config}
+    lsp[name].setup(
+        {
+            on_attach = function(client, buff_num)
+                register_actions(client, buff_num, ctx.actions)
+            end
+        }
+    )
+
+    server_count = server_count + 1
 end
 
 -- aspect filetypes
