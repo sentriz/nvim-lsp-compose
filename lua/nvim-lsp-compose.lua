@@ -26,19 +26,6 @@ local function auto_format(client, buff_num)
 	end
 end
 
-function clone(orig)
-	local copy
-	if type(orig) == "table" then
-		copy = {}
-		for orig_key, orig_value in next, orig, nil do
-			copy[clone(orig_key)] = clone(orig_value)
-		end
-	else
-		copy = orig
-	end
-	return copy
-end
-
 local M = {}
 
 -- write is to be called by the user, eg
@@ -86,7 +73,7 @@ end
 -- aspect server
 function M.server(server)
 	return function(ctx)
-		for k, v in pairs(clone(server)) do
+		for k, v in pairs(vim.deepcopy(server)) do
 			ctx.default_config[k] = v
 		end
 	end
