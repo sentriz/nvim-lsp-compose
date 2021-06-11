@@ -43,7 +43,12 @@ end
 
 -- add adds a server witht the provided aspects
 function M.add(...)
-	local ctx = { filetypes = {}, default_config = {}, actions = {} }
+	local ctx = {
+		filetypes = {},
+		default_config = {},
+		actions = {},
+		capabilities = vim.lsp.protocol.make_client_capabilities(),
+	}
 	for _, aspect in pairs({ ... }) do
 		aspect(ctx)
 	end
@@ -52,6 +57,7 @@ function M.add(...)
 	local name = string.format("compose-%d-%s", server_count, table.concat(ctx.filetypes, "-"))
 	configs[name] = { default_config = ctx.default_config }
 	lsp[name].setup({
+		capabilities = ctx.capabilities,
 		on_attach = function(client, buff_num)
 			register_actions(client, buff_num, ctx.actions)
 		end,
@@ -110,6 +116,18 @@ function M.linter(linter)
 			table.insert(c.settings.languages[filetype], linter)
 		end
 	end
+end
+
+-- aspect snippet support
+function M.snippet(ctx)
+	ctx.capabilities.textDocument.completion.completionItem.snippetSupport = true
+	ctx.capabilities.textDocument.completion.completionItem.resolveSupport = {
+		properties = {
+			"documentation",
+			"detail",
+			"additionalTextEdits",
+		},
+	}
 end
 
 -- aspect action with auto_format pre filled
