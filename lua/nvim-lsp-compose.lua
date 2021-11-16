@@ -59,6 +59,9 @@ function M.add(...)
 	lsp[name].setup({
 		capabilities = ctx.capabilities,
 		on_attach = function(client, buff_num)
+			if ctx.default_config.on_attach then
+				ctx.default_config.on_attach(client, buff_num)
+			end
 			register_actions(client, buff_num, ctx.actions)
 		end,
 	})
