@@ -1,6 +1,6 @@
+--# selene: allow(undefined_variable)
 local lsp = require("lspconfig")
 local configs = require("lspconfig/configs")
-local util = require("lspconfig/util")
 
 local server_count = 0
 local registered_actions = {}
@@ -17,7 +17,7 @@ local function register_actions(client, buff_num, actions)
 end
 
 -- auto_format is an action that asks the specified client to format the document
-local function auto_format(client, buff_num)
+local function auto_format(client, _)
 	local params = vim.lsp.util.make_formatting_params(options)
 	local result, _ = client.request_sync("textDocument/formatting", params, 2000)
 
