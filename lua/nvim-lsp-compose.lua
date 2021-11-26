@@ -1,6 +1,6 @@
 --# selene: allow(undefined_variable)
 local lsp = require("lspconfig")
-local configs = require("lspconfig/configs")
+local configs = require("lspconfig.configs")
 
 local server_count = 0
 local registered_actions = {}
