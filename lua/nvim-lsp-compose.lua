@@ -17,12 +17,12 @@ local function register_actions(client, buff_num, actions)
 end
 
 -- auto_format is an action that asks the specified client to format the document
-local function auto_format(client, _)
+local function auto_format(client, buff_num)
 	local params = vim.lsp.util.make_formatting_params(options)
 	local result, _ = client.request_sync("textDocument/formatting", params, 2000)
 
 	if result and result.result then
-		vim.lsp.util.apply_text_edits(result.result)
+		vim.lsp.util.apply_text_edits(result.result, buff_num)
 	end
 end
 
